@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:java="http://www.mulesoft.org/schema/mule/java"
+	xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<flow name="apim-report-main-flow" doc:id="eebd4c7b-e482-4738-8f34-e91c5994c2ca">
+		<json-logger:logger doc:name="Logger" doc:id="6d005a52-7175-4799-b467-2ac989dfff0f" config-ref="JSON_Logger_Config" message="Start collecting data for APIM report" tracePoint="FLOW" category="AUDIT">
+			<json-logger:content ><![CDATA[#[import modules::JSONLoggerModule 
+output application/json 
+---
+{
+    state: "Start collecting data for APIM report",
+    orgCount: sizeOf(vars['orgsWithEnv'])
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<flow-ref doc:name="consolidate-all-apis-subflow" doc:id="58170481-403d-4ec3-8eb1-326182dd90b0" name="consolidate-all-apis-subflow" />
+		<flow-ref doc:name="collect-api-related-objects-subflow" doc:id="85b431d5-5818-4f23-a84e-15419636a948" name="collect-api-related-objects-subflow"/>
+		<json-logger:logger doc:name="Logger" doc:id="08aeeea3-0734-4271-8c55-fd0948c9b672" config-ref="JSON_Logger_Config" message="All data collected for APIM Report" tracePoint="FLOW" category="AUDIT">
+			<json-logger:content ><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    state: "All data collected for APIM Report",
+    apiInstanceCount: sizeOf(vars['fullApiDetails'])
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<flow-ref doc:name="transform-apim-report-headers-to-map-subflow" doc:id="1a4ed7ec-02b9-437f-a02b-7ec4c1de7bec" name="transform-apim-report-headers-to-map-subflow" />
+		<json-logger:logger doc:name="Logger" doc:id="b293bbdf-2279-455e-96f1-d4ada1dda52a" config-ref="JSON_Logger_Config" message="Start building report" tracePoint="BEFORE_REQUEST" category="AUDIT">
+			<json-logger:content><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    state: "Start building report"
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<java:invoke-static doc:name="Create Report" doc:id="72f9dbe0-2472-4eb6-96eb-7fed0a9182a8" class="org.nint.export.excel.ExcelDataExporter" method="export(java.util.List, java.lang.String, java.util.List)">
+			<java:args ><![CDATA[#[{
+	arg0: vars['fullApiDetails'],
+	arg1: p('report.apim.location') ++ '/' ++ vars['fileName'],
+	arg2: vars['headers']
+}]]]></java:args>
+		</java:invoke-static>
+		<json-logger:logger doc:name="Logger" doc:id="dc3f9961-5009-475e-bb3a-6db932538326" config-ref="JSON_Logger_Config" message="Finished buiding the report" tracePoint="AFTER_REQUEST" category="AUDIT">
+			<json-logger:content><![CDATA[#[import modules::JSONLoggerModule 
+output application/json 
+---
+{
+    state: "Report has successfully created"
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<file:read doc:name="Read" doc:id="0d729de6-f9f6-4ef6-ae95-57359307d904" path="#[p('report.apim.location') ++ '/' ++ vars['fileName']]" outputMimeType="application/xlsx" outputEncoding="UTF-8"/>
+	</flow>
+	<sub-flow name="collect-api-related-objects-subflow" doc:id="10644473-de53-403d-bdfc-b51c51459c42" >
+		<foreach doc:name="For Each" doc:id="edb7de30-f6b8-487c-97fb-dce4e928bfec" collection="#[vars['apis']]">
+			<set-variable value="#[payload]" doc:name="Set Api" doc:id="9b024b54-1070-4b23-977f-e877ba6dcca8" variableName="api"/>
+			<flow-ref doc:name="get-api-policies-subflow" doc:id="263e4c12-1af4-4d6b-81dc-3275b0313443" name="get-api-policies-subflow" target="policies"/>
+			<flow-ref doc:name="get-api-contracts-subflow" doc:id="9e407b62-57a7-4d3b-9e99-928034098c13" name="get-api-contracts-subflow" target="contracts"/>
+			<flow-ref doc:name="get-api-tiers-subflow" doc:id="a59e5d3d-0d92-4330-a51a-c2ccfe7cb2e7" name="get-api-tiers-subflow" target="tiers"/>
+			<flow-ref doc:name="get-api-usage-subflow" doc:id="b585ad16-cb39-45d9-85dc-4850d9190931" name="get-api-usage-subflow" target="usage"/>
+			<ee:transform doc:name="Compose Each API Details Payload" doc:id="f2619e87-673e-4f62-9e45-116bb7dec2de" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+(vars['api'] default {}) ++ {
+	Policies: (vars['policies'] default []),
+	Contracts: (vars['contracts'] default []),
+	Tiers: (vars['tiers'] default []),
+	Usage: (vars['usage'] default [])
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<ee:transform doc:name="Consolidate Full Api Details" doc:id="426ee01b-ab86-4a99-bf38-038c9cd4fa80" >
+				<ee:message >
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="fullApiDetails" ><![CDATA[%dw 2.0
+output application/java
+---
+if(vars['fullApiDetails'] == null)
+	flatten([payload])
+else
+	flatten(vars['fullApiDetails'] ++ [payload])]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		</foreach>
+	</sub-flow>
+	<sub-flow name="consolidate-all-apis-subflow" doc:id="67b47658-d57e-478b-bb42-868da314d704" >
+		<foreach doc:name="For Each" doc:id="1e055002-93c1-403a-bc08-618f421e3668" collection="#[vars['orgsWithEnv'] default []]">
+			<set-variable value="#[payload]" doc:name="Set organisation" doc:id="af95ef08-52b0-4ba5-9a4b-865c7be9a19a" variableName="org" />
+			<foreach doc:name="For Each" doc:id="71336699-f641-4b9f-9b03-9fc70f50104d" collection="#[payload['environments'] default []]">
+				<flow-ref doc:name="get-all-apis-by-environment-subflow" doc:id="e02edd4b-62a7-44d5-9863-10a9f3521097" name="get-all-apis-by-environment-subflow" />
+				<ee:transform doc:name="Consolidate into a single Orgs Array" doc:id="4ae4e0bf-bf62-46a4-a345-1ff1de3971b6">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="apis"><![CDATA[%dw 2.0
+output application/java
+---
+if(vars['apis'] == null) 
+	(payload default [])
+else 
+	flatten(vars['apis'] ++ (payload default []))
+]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</foreach>
+		</foreach>
+	</sub-flow>
+	<sub-flow name="extract-all-orgs-subflow" doc:id="a527c1aa-75dc-4a1d-982b-43b03d772239" >
+		<flow-ref doc:name="get-orgs-subflow" doc:id="3108e8b7-5017-4771-a927-75a0435d32a3" name="get-orgs-subflow"/>
+		<foreach doc:name="For Each" doc:id="bebd633f-1583-4a51-993b-f31f7c16fe6e" collection="#[payload]">
+			<flow-ref doc:name="get-env-by-orgId-subflow" doc:id="20d46dac-baf6-45a0-924b-c4d7c411de89" name="get-env-by-orgId-subflow" />
+			<ee:transform doc:name="Consolidate into a single Orgs Array" doc:id="d45d550d-d4cc-4841-b3c9-9067aadccede">
+			<ee:message>
+			</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="orgsWithEnv"><![CDATA[%dw 2.0
+output application/java
+---
+if(vars['orgsWithEnv'] == null) 
+	[payload]
+else 
+	flatten(vars['orgsWithEnv'] ++ [payload])]]></ee:set-variable>
+				</ee:variables>
+		</ee:transform>
+		</foreach>
+		<set-payload value="#[vars['orgsWithEnv']]" doc:name="Set Payload" doc:id="8981826b-a554-4456-b51b-39c1bb72a857" />
+	</sub-flow>
+	<sub-flow name="transform-apim-report-headers-to-map-subflow" doc:id="e1982c85-44cd-4955-a0f0-bd946a86b1d2" >
+		<set-variable value="#['tmp_' ++ uuid() ++ '.xlsx']" doc:name="Set Variable" doc:id="05b6ec23-0114-4cbf-a381-b7114a2bc37a" variableName="fileName"/>
+		<set-variable value="#[p('report.apim.fileName')]" doc:name="Set returnedFileName" doc:id="4af11b54-5836-4868-b2a0-9bb2db607089" variableName="returnedFileName"/>
+		<ee:transform doc:name="Transform Message" doc:id="8c10ddb0-5b56-4158-a1e4-fa0279e105cd" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="headers" ><![CDATA[%dw 2.0
+output application/java
+var sheets = (p('report.apim.sheets') splitBy(",")) map trim($)
+fun convertToMap(str) = (
+    ((str splitBy (",")) map((value, index) -> 
+        using(k=(value splitBy("="))[0], v=(value splitBy("="))[1])
+        {
+            (trim(k)): trim(v)
+        })) reduce ((item, accumulator = {}) -> accumulator ++ item)
+    )
+---
+sheets map {
+    ($): convertToMap(p('report.apim.headers.'++ $))
+}
+]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+	</sub-flow>
+
+</mule>

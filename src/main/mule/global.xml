@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule
+	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+
+
+	<http:listener-config name="HTTP_Listener_config"
+		doc:name="HTTP Listener config"
+		doc:id="a5c4f1be-20d6-4a69-907b-2f462c3c37fd">
+		<http:listener-connection host="0.0.0.0"
+			port="8081" />
+	</http:listener-config>
+	<http:request-config
+		name="HTTPS_Request_configuration"
+		doc:name="HTTP Request configuration"
+		doc:id="cdcd1de8-c79f-481d-a7c2-cae4c03ef74a" enableCookies="false">
+		<http:request-connection protocol="HTTPS"
+			host="${anypoint.host}" port="443" />
+	</http:request-config>
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="c3f00cdf-0e58-45a8-ade7-c99fd3744788"
+		file="app-${mule.env}.yaml" />
+	<json-logger:config name="JSON_Logger_Config"
+		doc:name="JSON Logger Config"
+		doc:id="797898d6-fcfd-4d67-8ab4-8b9ff789741d"
+		applicationName="${app.name}" applicationVersion="${app.version}"
+		environment="${mule.env}" />
+	<api-gateway:autodiscovery apiId="17517378" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="56cacc91-5449-495c-b4a6-049ed140f7e0" flowRef="api-main" />
+</mule>

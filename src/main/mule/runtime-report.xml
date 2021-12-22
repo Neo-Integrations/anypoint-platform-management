@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:java="http://www.mulesoft.org/schema/mule/java"
+	xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<sub-flow name="runtime-report-main-subflow" doc:id="0c600180-f8ac-47d6-ac9d-3a3dab28aa50" >
+		<json-logger:logger doc:name="Logger" doc:id="f56d168e-41f7-411b-a638-e54aa6a4737e" config-ref="JSON_Logger_Config" message="Start collecting data for Runtime report" tracePoint="FLOW" category="AUDIT">
+			<json-logger:content><![CDATA[#[import modules::JSONLoggerModule 
+output application/json 
+---
+{
+    state: "Start collecting data for Runtime report",
+    orgCount: sizeOf(vars['orgsWithEnv'])
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<foreach doc:name="For Each" doc:id="94aa1774-cbde-49f9-9316-4e3ab76d93fd" collection="#[vars['orgsWithEnv'] default []]">
+			<set-variable value="#[payload]" doc:name="Set Variable" doc:id="cbbf438e-bd03-4b86-bcbc-bef81b94ac04" variableName="org"/>
+			<foreach doc:name="For Each" doc:id="ece2818d-55ac-43c3-95ce-1b0d63a2b083" collection="#[payload['environments'] default []]">
+				<flow-ref doc:name="get-applications-subflow" doc:id="3cf767f6-7b8b-4e38-bf01-362d1fdcf9dd" name="get-applications-subflow" />
+				<ee:transform doc:name="Consolidate into a single Orgs Array" doc:id="7d06cc4f-d7aa-489f-892c-247dd9e23fb9" >
+					<ee:message >
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="arm" ><![CDATA[%dw 2.0
+output application/java
+---
+if(vars['arm'] == null) 
+	(payload default [])
+else 
+	flatten(vars['arm'] ++ (payload default []))
+]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</foreach>
+		</foreach>
+		<flow-ref doc:name="collect-runtime-related-objects-subflow" doc:id="516a80d6-a0c7-44ac-b616-d697bb5fa61f" name="collect-runtime-related-objects-subflow"/>
+		<json-logger:logger doc:name="Logger" doc:id="5d1c9ba3-e309-447e-abaa-3266f8d5e532" config-ref="JSON_Logger_Config" message="All data collected for Runtime Report" tracePoint="FLOW" category="AUDIT" >
+			<json-logger:content ><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    state: "All data collected for Runtime Report",
+    apiInstanceCount: sizeOf(vars['arm'])
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<flow-ref doc:name="transform-runtime-report-headers-to-map-subflow" doc:id="5be57935-e2a1-4608-8352-37cff9371a6f" name="transform-runtime-report-headers-to-map-subflow" />
+		<json-logger:logger doc:name="Logger" doc:id="4f483e09-e1d1-4f13-aa8b-c42b8c62f371" config-ref="JSON_Logger_Config" message="Start building report" tracePoint="BEFORE_REQUEST" category="AUDIT" >
+			<json-logger:content ><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    state: "Start building report"
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<java:invoke-static method="export(java.util.List, java.lang.String, java.util.List)" doc:name="Create Report" doc:id="0c69377e-f932-4fa5-872f-a76bb21bf36a" class="org.nint.export.excel.ExcelDataExporter" >
+			<java:args ><![CDATA[#[{
+	arg0: vars['fullAppDetails'],
+	arg1: p('report.runtime.location') ++ '/' ++ vars['fileName'],
+	arg2: vars['headers']
+}]]]></java:args>
+		</java:invoke-static>
+		<json-logger:logger doc:name="Logger" doc:id="67e864f1-c21c-4d3a-9c32-6af5aa582343" config-ref="JSON_Logger_Config" message="Finished buiding the report" tracePoint="AFTER_REQUEST" category="AUDIT" >
+			<json-logger:content ><![CDATA[#[import modules::JSONLoggerModule 
+output application/json 
+---
+{
+    state: "Report has successfully created"
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<file:read doc:name="Read" doc:id="bba478ad-8643-43cd-a26a-78b798a2942b" path="#[p('report.runtime.location') ++ '/' ++ vars['fileName']]" outputMimeType="application/xlsx" outputEncoding="UTF-8" />
+	</sub-flow>
+	<sub-flow name="collect-runtime-related-objects-subflow" doc:id="f782f940-2270-49ef-aa77-42b721bc54c7" >
+		<foreach doc:name="For Each" doc:id="54c9acfe-32fb-49a3-b3d5-265cb4d82e01" collection="#[vars['arm']]">
+			<set-variable value="#[payload]" doc:name="Set App" doc:id="ca5fd4d4-905d-48a8-8ac2-b10158e8bcae" variableName="app"/>
+			<flow-ref doc:name="get-application-usage-subflow" doc:id="1f79cf2b-110e-4b28-8c66-c54541cbf20a" name="get-application-usage-subflow" target="usage"/>
+			<ee:transform doc:name="Compose Each App Details Payload" doc:id="2a78d9e9-a797-46fd-9efb-8d1bc27f4b61" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+(vars['app'] default {}) ++ {
+	Usage: (vars['usage'] default [])
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<ee:transform doc:name="Consolidate Full App Details" doc:id="9562c3d7-8771-4887-8af5-612bd893fe65" >
+				<ee:message />
+				<ee:variables >
+					<ee:set-variable variableName="fullAppDetails" ><![CDATA[%dw 2.0
+output application/java
+---
+if(vars['fullAppDetails'] == null)
+	flatten([payload])
+else
+	flatten(vars['fullAppDetails'] ++ [payload])]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		</foreach>
+	</sub-flow>
+	<sub-flow name="transform-runtime-report-headers-to-map-subflow" doc:id="b8f1ff68-4306-4f04-8483-a25267f59a35" >
+		<set-variable value="#['tmp_' ++ uuid() ++ '.xlsx']" doc:name="Set Variable" doc:id="ed82bedf-d314-41b1-b8d8-139f3299315e" variableName="fileName" />
+		<set-variable value="#[p('report.runtime.fileName')]" doc:name="Set returnedFileName" doc:id="546c4c7a-a8ff-4285-a18d-6b492bde6b55" variableName="returnedFileName" />
+		<ee:transform doc:name="Transform Message" doc:id="5db252a1-2955-4f27-8f81-33723a88f193" >
+			<ee:message />
+			<ee:variables >
+				<ee:set-variable variableName="headers" ><![CDATA[%dw 2.0
+output application/java
+var sheets = (p('report.runtime.sheets') splitBy(",")) map trim($)
+fun convertToMap(str) = (
+    ((str splitBy (",")) map((value, index) -> 
+        using(k=(value splitBy("="))[0], v=(value splitBy("="))[1])
+        {
+            (trim(k)): trim(v)
+        })) reduce ((item, accumulator = {}) -> accumulator ++ item)
+    )
+---
+sheets map {
+    ($): convertToMap(p('report.runtime.headers.'++ $))
+}
+]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+	</sub-flow>
+</mule>

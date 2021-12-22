@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+
+
+	<sub-flow name="anypoint-security-connectedApp-subflow"
+		doc:id="942e7c0f-4e56-4c2e-bd65-ed81d22358e9">
+		<ee:transform doc:name="Login Payload"
+			doc:id="74ecf658-a5f3-43c4-8043-bc26c8deabd5">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/x-www-form-urlencoded
+---
+{
+  "client_id": attributes.headers['X-CONNECTED-APP-CLIENT_ID'],
+  "client_secret": attributes.headers['X-CONNECTED-APP-CLIENT_SECRET'],
+  "grant_type": "client_credentials"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<http:request method="POST" doc:name="Anypoint Login"
+			doc:id="cc976569-aef7-4f7d-b9fa-f34f17ef6d9c"
+			config-ref="HTTPS_Request_configuration"
+			path="/accounts/api/v2/oauth2/token">
+		</http:request>
+		<set-payload value="#[payload['access_token']]" doc:name="Set Payload" doc:id="b05115d2-7bfd-48bf-9607-b925bc8caf06" />
+	</sub-flow>
+	<sub-flow name="anypoint-security-userPassword-subflow"
+		doc:id="2d12941c-dc6f-4020-b197-0da78604b3cb">
+		<ee:transform doc:name="Login Payload"
+			doc:id="b4eaa042-f54d-49fa-841a-598599f5ec3f">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  "username": attributes.headers['X-USER-NAME'],
+  "password": attributes.headers['X-PASSWORD']
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<http:request method="POST" doc:name="Anypoint Login"
+			doc:id="9f31aabb-b1f0-47ab-9118-65c8c12f2c9e"
+			config-ref="HTTPS_Request_configuration" path="/accounts/login">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+		</http:request>
+		<set-payload value="#[payload['access_token']]" doc:name="Set Payload" doc:id="d3c9ac13-069c-4aa7-b21d-c7b6c9e896b6" />
+	</sub-flow>
+	<sub-flow name="anypoint-security-accessToken-subflow" doc:id="4db53739-24d2-44d0-a1be-86498079b9a5" >
+		<set-payload value="#[trim(attributes.headers['X-ACCESS-TOKEN'])]" doc:name="Set Payload" doc:id="18c0e5a3-99f4-45e2-9930-05fdd607e1f6" />
+	</sub-flow>
+
+</mule>

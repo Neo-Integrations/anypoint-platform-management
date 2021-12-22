@@ -1,0 +1,34 @@
+json:
+  logger:
+    disabledFields: ""
+
+app:
+  name: ${project.artifactId}
+  version: ${project.version}
+  id: "123124"
+
+report:
+  runtime:
+    location: "${app.home}"
+    fileName: "Clipper Runtime Reports.xlsx"
+    sheets: "Applications, Usage"
+    duration: "0.125"
+    headers:
+      Applications: "orgName=Organisation Name,envName=Environment Name,isProduction=Is Production,appName=API Name,fullDomain=Full Domain Name,status=Status,numberOfWorkers=Number of Workers, eachWorkerVCores=Size,totalvCores=Total,deployedFileName=File Name,awsRegion=Region,muleVersion=Mule Version,persistentQueues=Persistent Queue,monitoringEnabled=Monitoring,staticIPsEnabled=Static IP,versionId=Version"
+      Usage: "orgName=Organisation Name,envName=Environment Name,isProduction=Is Production,appName=API Name,fullDomain=Full Domain Name,status=Status,usage:count=Number of Requests"
+  apim:
+    location: "${app.home}"
+    fileName: "Clipper API Validation Reports.xlsx"
+    sheets: "Policies,Contracts,Tiers,Usage"
+    duration: "15"
+    headers:
+      Policies: "orgName=Organisation Name,envName=Environment Name,isProduction=Is Production,assetId=API Name,environmentApiId=API Instance Id,policies:policyName=Policy Name,policies:assetVersion=Policy Version"
+      Contracts: "orgName=Organisation Name,envName=Environment Name,isProduction=Is Production,assetId=API Name,environmentApiId=API Instance Id,contracts:appName=Client App Name,contracts:clientId=Client App Id,contracts:status=Status"
+      Tiers: "orgName=Organisation Name,envName=Environment Name,isProduction=Is Production,assetId=API Name,environmentApiId=API Instance Id,tiers:name=Tier Name,tiers:autoApprove=Auto Approved,tiers:status=Status"
+      Usage: "orgName=Organisation Name,envName=Environment Name,isProduction=Is Production,assetId=API Name,environmentApiId=API Instance Id,usage:clientId=Client App Id,usage:usage=Usage"
+        
+  
+anypoint:
+  organisationName: "Mulesoft"
+  host: "anypoint.mulesoft.com"
+      

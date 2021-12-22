@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:microsoftTeams="http://www.mulesoft.org/schema/mule/microsoftTeams" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/microsoftTeams http://www.mulesoft.org/schema/mule/microsoftTeams/current/mule-microsoftTeams.xsd">
+	<sub-flow name="get-application-usage-subflow" doc:id="d43cc1cc-05bd-4ff3-a3ee-3d736ae557c4" >
+		<until-successful maxRetries="3" doc:name="Until Successful" doc:id="24760433-c155-44d7-ab5b-e87db6193170" millisBetweenRetries="5000">
+			<http:request method="GET" doc:name="Get Application Usage" doc:id="e499f11e-eee8-4665-b77b-47451cc6a7fc" config-ref="HTTPS_Request_configuration" path="/cloudhub/api/applications/{domain}/statistics">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : 'Bearer ' ++ vars.accessToken,
+	"X-ANYPNT-ENV-ID": vars['app']['envId']
+}]]]></http:headers>
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	domain : vars['app']['appName']
+}]]]></http:uri-params>
+			<http:query-params><![CDATA[#[{
+	period: ceil((p('report.runtime.duration') as Number)  * 24 * 60 * 60 * 1000),
+	intervalCount: 1
+}]]]></http:query-params>
+		</http:request>
+		</until-successful>
+		<ee:transform doc:name="Transform Message" doc:id="2114e2d9-38f2-4721-b485-dab35a934769" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+[payload mapObject {
+    count: $
+}]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="get-applications-subflow" doc:id="de307916-56d2-4ef9-9cf6-3817994bfe66" >
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="1599ad9b-f6dd-4f29-82ad-590c9f536a73" variableName="env"/>
+		<http:request method="GET" doc:name="Get Applications" doc:id="dfa4ff29-8a6b-4591-ad6d-e874a37387c4" config-ref="HTTPS_Request_configuration" path="/cloudhub/api/v2/applications">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Authorization" : 'Bearer ' ++ vars.accessToken,
+	"X-ANYPNT-ENV-ID": vars['env']['id']
+}]]]></http:headers>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="1dd6c1ba-ef33-47b7-a3e8-db2567992786" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+(payload default []) map {
+	
+    appName: $['domain'],
+    fullDomain: $['fullDomain'],
+    status: $['status'],
+    (numberOfWorkers: $['workers']['amount']) if($['workers'] != null),
+    (eachWorkerVCores: $['workers']['type']['weight']) if($['workers'] != null),
+    (totalvCores: $['workers']['type']['weight'] * $['workers']['amount']) if($['workers'] != null),
+    deployedFileName: $['fileName'],
+    (muleVersion: $['muleVersion']['version']) if($['muleVersion'] != null),
+    awsRegion: $['region'],
+    persistentQueues: $['persistentQueues'],
+    monitoringEnabled: $['monitoringEnabled'],
+    staticIPsEnabled: $['staticIPsEnabled'],
+    versionId: $['versionId'],
+    orgId: vars['org']['orgId'],
+    orgName: vars['org']['orgName'],
+	envId: vars['env']['id'],
+	envName: vars['env']['name'],
+	envType: vars['env']['envType'],
+	isProduction: vars['env']['isProduction']
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+</mule>

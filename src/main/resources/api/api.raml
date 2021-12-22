@@ -1,0 +1,37 @@
+#%RAML 1.0
+title: anypoint-platform-management
+description: This API will provide report on various aspect of the Anypoint Platform
+
+protocols: [HTTPS]
+
+version: v1
+mediaType: application/json
+
+baseUri: https://example.com/anypoint/reports
+
+traits:
+  clientIdEnforced: !include traits/clientIdEnforced.raml
+  commonErrorHandling: !include traits/commonErrorHandling.raml
+  traceable: !include traits/traceable.raml
+  authStrategy: !include traits/anypoint-credentials.raml
+  
+types:
+  commonErrorResponse: !include datatypes/common-error-response.raml
+  success: !include datatypes/success.raml
+
+/apim:
+  get:
+    is: [clientIdEnforced, traceable, commonErrorHandling, authStrategy]
+    responses:
+      200:
+        body:
+          application/xlsx:
+
+/runtime:
+  get:
+    is: [clientIdEnforced, traceable, commonErrorHandling, authStrategy]
+    responses:
+      200:
+        body:
+          application/xlsx:
+

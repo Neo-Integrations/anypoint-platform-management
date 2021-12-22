@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+    <head>
+        <style type="text/css">
+            .form-style-5 {
+                max-width: 700px;
+                padding: 10px 20px;
+                background: #f4f7f8;
+                margin: 10px auto;
+                padding: 20px;
+                background: #f4f7f8;
+                border-radius: 8px;
+                font-family: Georgia, "Times New Roman", Times, serif;
+            }
+            .form-style-5 fieldset {
+                border: none;
+            }
+            .form-style-5 legend {
+                font-size: 1.4em;
+                margin-bottom: 10px;
+            }
+            .form-style-5 label {
+                display: block;
+                margin-bottom: 8px;
+            }
+            .form-style-5 input[type="text"],
+            .form-style-5 input[type="password"],
+            .form-style-5 input[type="date"],
+            .form-style-5 input[type="datetime"],
+            .form-style-5 input[type="email"],
+            .form-style-5 input[type="number"],
+            .form-style-5 input[type="search"],
+            .form-style-5 input[type="time"],
+            .form-style-5 input[type="url"],
+            .form-style-5 textarea,
+            .form-style-5 select {
+                font-family: Georgia, "Times New Roman", Times, serif;
+                background: rgba(255, 255, 255, 0.1);
+                border: none;
+                border-radius: 4px;
+                font-size: 15px;
+                margin: 0;
+                outline: 0;
+                padding: 10px;
+                width: 100%;
+                box-sizing: border-box;
+                -webkit-box-sizing: border-box;
+                -moz-box-sizing: border-box;
+                background-color: #e8eeef;
+                color: #8a97a0;
+                -webkit-box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03) inset;
+                box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03) inset;
+                margin-bottom: 30px;
+            }
+            .form-style-5 input[type="text"]:focus,
+            .form-style-5 input[type="date"]:focus,
+            .form-style-5 input[type="datetime"]:focus,
+            .form-style-5 input[type="email"]:focus,
+            .form-style-5 input[type="number"]:focus,
+            .form-style-5 input[type="search"]:focus,
+            .form-style-5 input[type="time"]:focus,
+            .form-style-5 input[type="url"]:focus,
+            .form-style-5 textarea:focus,
+            .form-style-5 select:focus {
+                background: #d2d9dd;
+            }
+            .form-style-5 select {
+                -webkit-appearance: menulist-button;
+                height: 35px;
+            }
+            .form-style-5 .number {
+                background: #1abc9c;
+                color: #fff;
+                height: 30px;
+                width: 30px;
+                display: inline-block;
+                font-size: 0.8em;
+                margin-right: 4px;
+                line-height: 30px;
+                text-align: center;
+                text-shadow: 0 1px 0 rgba(255, 255, 255, 0.2);
+                border-radius: 15px 15px 15px 0px;
+            }
+
+            .form-style-5 input[type="submit"],
+            .form-style-5 input[type="button"] {
+                position: relative;
+                display: block;
+                padding: 19px 39px 18px 39px;
+                color: #fff;
+                margin: 0 auto;
+                background: #1abc9c;
+                font-size: 18px;
+                text-align: center;
+                font-style: normal;
+                width: 100%;
+                border: 1px solid #16a085;
+                border-width: 1px 1px 3px;
+                margin-bottom: 10px;
+            }
+            .form-style-5 input[type="submit"]:hover,
+            .form-style-5 input[type="button"]:hover {
+                background: #109177;
+            }
+            .styled-table {
+                border-collapse: collapse;
+                margin: 25px 0;
+                font-size: 0.9em;
+                font-family: sans-serif;
+                min-width: 400px;
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+            }
+            .styled-table thead tr {
+                background-color: #009879;
+                color: #ffffff;
+                text-align: left;
+            }
+            .styled-table th,
+            .styled-table td {
+                padding: 12px 15px;
+            }
+            .styled-table tbody tr {
+                border-bottom: 1px solid #dddddd;
+            }
+
+            .styled-table tbody tr:nth-of-type(even) {
+                background-color: #f3f3f3;
+            }
+
+            .styled-table tbody tr:last-of-type {
+                border-bottom: 2px solid #009879;
+            }
+            .styled-table tbody tr.active-row {
+                font-weight: bold;
+                color: #009879;
+            }
+        </style>
+        <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+        <script type="text/javascript">
+            $(document).ready(function () {
+                $("#whole").css("display", "none");
+                $(".encrypt").click(function () {
+                    if ($("input[name=encrypt]:checked").val() == "Encrypt") {
+                        $("#whole").show();
+                        $("#plain").slideDown("fast"); //Slide Down Effect
+                        $("#cypher").css("display", "none");
+                        document.getElementById("form_id").action = "/api/crypto/encrypt";
+                    }
+                    if ($("input[name=encrypt]:checked").val() == "Decrypt") {
+                        $("#whole").show();
+                        $("#cypher").slideDown("fast"); //Slide Down Effect
+                        $("#plain").css("display", "none");
+                        document.getElementById("form_id").action = "/api/crypto/decrypt";
+                    }
+                });
+
+                $("#submitButton").click(function (event) {
+
+                  //stop submit the form, we will post it manually.
+                  event.preventDefault();
+
+                  // Get form
+                  const form = $('#form_id')[0];
+
+                  // Create an FormData object
+                  const data = new FormData(form);
+                  const url = $('#form_id').attr('action');
+
+                  // disabled the submit button
+                  $("#submitButton").prop("disabled", true);
+
+                  $.ajax({
+                    type: "POST",
+                    enctype: 'multipart/form-data',
+                    url: url,
+                    data: data,
+                    processData: false,
+                    contentType: false,
+                    cache: false,
+                    timeout: 600000,
+                    success: function (data) {
+                        $("#open_ender_output").html(data);
+                        console.log("SUCCESS : ", data);
+                        $("#submitButton").prop("disabled", false);
+                    },
+                    error: function (e) {
+                        $("#open_ender_output").html(e.responseText);
+                        console.log("ERROR : ", e);
+                        $("#submitButton").prop("disabled", false);
+
+                    }
+              });
+
+          });
+
+
+      });
+        </script>
+        <title>MuleSoft Anypoint Stats Collector</title>
+    </head>
+    <body>
+        <div class="form-style-5">
+            <form id="form_id" enctype="multipart/form-data" action="/api/crypto/decrypt" method="post">
+                  <div id="authStrategy" class="row">
+                      <label for="auth-strategy">Auth Strategy: </label>
+                      <select name="auth-strategy" id="auth-strategy" class="field-select">
+                          <option value="connectedApp" selected="selected">connectedApp</option>
+                          <option value="userPassword">userPassword</option>
+                          <option value="refreshToken">refreshToken</option>
+                          <option value="accessToken">accessToken</option>
+                      </select>
+                  </div>
+
+                    <div id="cypher" class="row">
+                        <label for="cypherText">Cypher Text: </label>
+                        <input type="text" id="cypherText" value="" name="cypherText" />
+                    </div>
+                    <div id="plain" class="row">
+                        <label for="plainText">Plain Text: </label>
+                        <input type="text" id="plainText" value="" name="plainText" />
+                    </div>
+                    <div id="key" class="row">
+                        <label for="secretKey">Secret Key: </label>
+                        <input type="password" id="secretKey" value="" name="secretKey" />
+                    </div>
+
+                    <div id="authStrategy" class="row">
+                        <label for="auth-strategy">Algorithm: </label>
+                        <select name="auth-strategy" id="auth-strategy" class="field-select">
+            							<option value="AES" selected="selected">AES</option>
+            							<option value="Blowfish">Blowfish</option>
+                        </select>
+                    </div>
+
+
+                <input type="submit" id="submitButton" name="submitButton" value="Submit" class="submitbtn" />
+            </form>
+        </div>
+    </body>
+</html>

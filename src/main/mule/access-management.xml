@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<sub-flow name="get-orgs-subflow" doc:id="e198d1a6-b1f7-42fc-8463-280b41475ac4" >
+		<http:request method="GET" doc:name="Get Organisations" doc:id="7d8ed610-d4a1-407e-be04-e63b24974678" config-ref="HTTPS_Request_configuration" path="/accounts/api/me">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Authorization" : 'Bearer ' ++ vars.accessToken
+}]]]></http:headers>
+		</http:request>
+		<ee:transform doc:name="Convert to Org Array" doc:id="174035e8-f078-455b-8182-b67e7bb85555" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+(payload['user']['memberOfOrganizations']['id'] ++ 
+	flatten(payload['user']['memberOfOrganizations']['subOrganizationIds'])
+) distinctBy($)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="get-env-by-orgId-subflow" doc:id="4fc40c96-db8f-4fc0-a795-3ddc6fc5e191" >
+		<http:request method="GET" doc:name="Get Organisation Details" doc:id="1edc51f2-d9cb-4a96-ab93-44f6e4db8b24" config-ref="HTTPS_Request_configuration" path="/accounts/api/organizations/{orgId}" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Authorization" : 'Bearer ' ++ vars.accessToken
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"orgId" : payload
+}]]]></http:uri-params>
+		</http:request>
+		<ee:transform doc:name="Convert To Environment Array" doc:id="2d366667-d05e-4cf3-b9cf-ed04b6453e30" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    orgName: payload['name'],
+    orgId: payload['id'],
+    isMaster: payload['isMaster'],
+    environments: payload['environments'] map {
+    	id: $.id,
+    	name: $.name,
+    	isProduction: $.isProduction,
+        envType: $['type']
+    }
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+</mule>

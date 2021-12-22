@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<sub-flow name="get-api-usage-subflow" doc:id="4e504b14-efd5-46ad-b68b-12a7835fadca" >
+		<ee:transform doc:name="API Usage Query Payload" doc:id="3235e4d2-cbcd-4428-ba28-46028aafdbf7" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+var instanceId = vars['api']['environmentApiId']
+var duration = p('report.apim.duration')
+
+---
+{
+    "type": "enriched-http-event",
+    "aggregators": [
+        {
+            "dimension": "client_id",
+            "order": "descending"
+        }
+    ],
+    "duration": ((duration * 24 * 60) as String) ++ "m",
+    "filters": [
+        {
+            "or": [
+                {
+                    "equals": {
+                        "api_version_id": instanceId
+                    }
+                }
+            ]
+        }
+    ],
+    "start_time": now() - "P$(duration)D",
+    "include_policy_violation": true
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<until-successful maxRetries="30" doc:name="Until Successful" doc:id="50de68b8-0aa8-49fa-9776-481225efac81" millisBetweenRetries="5000">
+			<http:request method="POST" doc:name="API Usage" doc:id="ac223a71-c4db-4ab2-9a74-6dff8a764e91" config-ref="HTTPS_Request_configuration" path="/analytics/1.0/{organizationId}/environments/{environmentId}/query">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : 'Bearer ' ++ vars.accessToken
+}]]]></http:headers>
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	"environmentId" : vars['api']['envId'],
+	"organizationId" : vars['api']['orgId']
+}]]]></http:uri-params>
+		</http:request>
+		</until-successful>
+		<ee:transform doc:name="Transform Message" doc:id="a0e65699-69a6-4b9a-b7e0-65dc86e25734" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+(flatten(payload.response.client_id default []) map ((client, idx) ->
+    using(keys=keysOf(client), key=keys[0])
+{
+    clientId: key,
+    usage: client[key].count
+})) ]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="get-api-tiers-subflow" doc:id="7de0af85-9eb6-42db-8cf2-94e44966cc31" >
+		<http:request method="GET" doc:name="Get API SLAs by API InstanceId" doc:id="2a9e40d4-0626-4cda-b82a-f344cf160e55" config-ref="HTTPS_Request_configuration" path="/apimanager/api/v1/organizations/{organizationId}/environments/{environmentId}/apis/{environmentApiId}/tiers" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Authorization" : 'Bearer ' ++ vars.accessToken
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"environmentId" : vars['api']['envId'],
+	"organizationId" : vars['api']['orgId'],
+	"environmentApiId": vars['api']['environmentApiId']
+}]]]></http:uri-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="7f1c5d12-0931-4a9c-8a9a-c9db9be536a5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+(payload.tiers default []) map {
+    id: $.id,
+    name: $.name,
+    description: $.description,
+    status: $.status,
+    autoApprove: $.autoApprove
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="get-api-contracts-subflow" doc:id="50e1ebd1-757e-4a9b-b62a-c63621899511" >
+		<http:request method="GET" doc:name="Get API Contracts by API InstanceId" doc:id="ebdb4f7b-d96c-4ba1-943f-32cf47bda492" config-ref="HTTPS_Request_configuration" path="/apimanager/api/v1/organizations/{organizationId}/environments/{environmentId}/apis/{environmentApiId}/contracts" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Authorization" : 'Bearer ' ++ vars.accessToken
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"environmentId" : vars['api']['envId'],
+	"organizationId" : vars['api']['orgId'],
+	"environmentApiId": vars['api']['environmentApiId']
+}]]]></http:uri-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="29558414-4331-4778-8092-f6a73889589d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+(payload.contracts default []) map {
+    status: $.status,
+    applicationId: $.applicationId,
+    appName: $['application']['name'],
+    clientId: $['application']['coreServicesId'],
+    condition: $.condition
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="get-api-policies-subflow" doc:id="9e9f007e-7f07-47eb-94c0-0eaf6bac79b1" >
+		<http:request method="GET" doc:name="Get API Policies by API InstanceId" doc:id="9cef2e2f-c6d6-450a-8f2a-a6afde6ea52b" config-ref="HTTPS_Request_configuration" path="/apimanager/api/v1/organizations/{organizationId}/environments/{environmentId}/apis/{environmentApiId}/policies" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Authorization" : 'Bearer ' ++ vars.accessToken
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"environmentId" : vars['api']['envId'],
+	"organizationId" : vars['api']['orgId'],
+	"environmentApiId": vars['api']['environmentApiId']
+}]]]></http:uri-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="94993c13-1a4d-4815-a7d2-2693d3ac33ff" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+(payload.policies default []) map {
+    policyTemplateId: $.policyTemplateId,
+    policyId: $.policyId,
+    policyName: $.template.assetId,
+    policyGroupId: $.template.groupId,
+    assetVersion: $.template.assetVersion
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="get-all-apis-by-environment-subflow" doc:id="61f0adee-cb9b-4f23-a33a-bcf6f7679c9e" >
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="ee05536b-5a05-447a-9400-0676a1ad4e46" variableName="env"/>
+		<http:request method="GET" doc:name="Get APIs by Environment" doc:id="c24543f0-94d0-45dc-bb9c-a7d7ba92a701" config-ref="HTTPS_Request_configuration" path="/apimanager/api/v1/organizations/{organizationId}/environments/{environmentId}/apis">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Authorization" : 'Bearer ' ++ vars.accessToken
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"environmentId" : vars['env']['id'],
+	"organizationId" : vars['org']['orgId']
+}]]]></http:uri-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="bafafaa2-f870-48fd-97f8-7db078fa2c18" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+flatten(payload.assets.apis default []) map {
+        environmentApiId: $.id,
+        assetId: $.assetId,
+        groupId: $.groupId,
+        version: $.assetVersion,
+        orgId: vars['org']['orgId'],
+        orgName: vars['org']['orgName'],
+    	envId: vars['env']['id'],
+    	envName: vars['env']['name'],
+    	envType: vars['env']['envType'],
+    	isProduction: vars['env']['isProduction']
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+</mule>

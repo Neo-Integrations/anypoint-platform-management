@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd  http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+    <apikit:config name="api-config" api="api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <flow name="api-main">
+        <http:listener config-ref="HTTP_Listener_config" path="/anypoint/reports/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[{
+	"Content-Type" : "application/xlsx",
+	"Content-Disposition": "attachment; filename=" ++ vars['returnedFileName']
+}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="api-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="get:\apim:api-config">
+        <json-logger:logger doc:name="Logger" doc:id="8035f1a8-4ad6-4c73-bc9b-8282966a3821" config-ref="JSON_Logger_Config" message="Start the processing" category="AUDIT">
+            <json-logger:content><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    stage: "Starting"
+}]]]></json-logger:content>
+        </json-logger:logger>
+        <flow-ref doc:name="login-subflow" doc:id="34683614-f131-4af5-be9b-0eee4473a5b3" name="#['anypoint-security-' ++ attributes.headers['X-AUTH-STRATEGY'] ++ '-subflow']" target="accessToken" />
+        <flow-ref doc:name="extract-all-orgs-subflow" doc:id="fe430631-0ba7-4428-a156-65d2b23c9dc9" name="extract-all-orgs-subflow" target="orgsWithEnv" />
+        <flow-ref doc:name="apim-report-main-flow" doc:id="1c03547a-3dec-4039-8edb-8046dd51a766" name="apim-report-main-flow" />
+        <json-logger:logger doc:name="Logger" doc:id="297a417f-151d-4104-af78-bec844eae4ed" config-ref="JSON_Logger_Config" message="End of Processing" tracePoint="END" category="AUDIT">
+            <json-logger:content><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    stage: "Finished"
+}]]]></json-logger:content>
+        </json-logger:logger>
+    </flow>
+    <flow name="get:\runtime:api-config">
+        <json-logger:logger doc:name="Logger" doc:id="a3f83f1a-cc7f-4028-9cac-2458901e9ea2" config-ref="JSON_Logger_Config" message="Start the processing" category="AUDIT">
+            <json-logger:content><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    stage: "Starting"
+}]]]></json-logger:content>
+        </json-logger:logger>
+        <flow-ref doc:name="login-subflow" doc:id="1eb4e921-072f-4f72-bb1f-e2fdefa230fc" name="#['anypoint-security-' ++ attributes.headers['X-AUTH-STRATEGY'] ++ '-subflow']" target="accessToken" />
+        <flow-ref doc:name="extract-all-orgs-subflow" doc:id="e768e3dc-fdb1-4b91-adac-a75d115d3605" name="extract-all-orgs-subflow" target="orgsWithEnv" />
+        <flow-ref doc:name="runtime-report-main-subflow" doc:id="d81fe623-2c46-45f7-9d40-7a2c90022221" name="runtime-report-main-subflow" />
+        <json-logger:logger doc:name="Logger" doc:id="caee2668-d2a7-4a18-a823-831da246a59c" config-ref="JSON_Logger_Config" message="End of Processing" tracePoint="END" category="AUDIT">
+            <json-logger:content><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    stage: "Finished"
+}]]]></json-logger:content>
+        </json-logger:logger>
+    </flow>
+</mule>

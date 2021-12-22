@@ -1,0 +1,18 @@
+#%RAML 1.0 Trait
+usage: Apply this trait to each API so that it has a transaction id to trace its flow within the enterprise
+description: The service endpoint requires authentication for every API request.
+headers:
+  X-TRANSACTION-ID:
+    description: A code to track API calls end to end. A GUID(https://en.wikipedia.org/wiki/Universally_unique_identifier) is highly recommanded. This will lived for the during of a transaction.
+    type: string
+    maxLength: 50
+    minLength: 5
+    required: true
+    example: 3F2504E0-4F89-11D3-9A0C-0305E82C3301
+  X-BUSINESS-UNIT-ID:
+      description: Unique Id for the Business Unit consuming the API
+      type: string
+      maxLength: 64
+      minLength: 2
+      required: false
+      
